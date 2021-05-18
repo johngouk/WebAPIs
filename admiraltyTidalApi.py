@@ -2,7 +2,7 @@ import requests, pprint, datetime
 
 url ='https://admiraltyapi.azure-api.net/uktidalapi/api/V1/Stations'
 
-headers = {'Accept':'application/json', 'Ocp-Apim-Subscription-Key':'9718c154a61b4c64b156c8ebceb20177'}
+headers = {'Accept':'application/json', 'Ocp-Apim-Subscription-Key':'apikey'}
 
 coord = [-1.021254233956172,51.45985952778045]
 
