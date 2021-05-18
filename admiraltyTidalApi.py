@@ -1,4 +1,4 @@
-import requests, pprint, datetime
+import requests, pprint, datetime, json
 
 url ='https://admiraltyapi.azure-api.net/uktidalapi/api/V1/Stations'
 
@@ -6,16 +6,18 @@ headers = {'Accept':'application/json', 'Ocp-Apim-Subscription-Key':'apikey'}
 
 coord = [-1.021254233956172,51.45985952778045]
 
+with open('admiralty.key') as f:
+    apikey = json.load(f)
+    
+headers['Ocp-Apim-Subscription-Key'] = apikey['apikey']
+
 r = requests.get(url, headers=headers)
 print ('Result',r.status_code)
 print ('Type', r.headers['content-type'])
 jsonData = r.json()
- 
 
-#print(len(jsonData))
-#print(jsonData.keys())
-#print(jsonData['type'],':',len(jsonData['type']),' ',jsonData['features'],':',len(jsonData['features']))
-
+# Now look for the station closest to the provided lon/lat
+# using a simple metric of the smallest absolute angular deltas
 station = {}
 stationList = []
 minLonDiff = 180
@@ -36,6 +38,7 @@ print ("total ",i)
 #pprint.pprint(stationList)
 #pprint.pprint(station)
 print('lonD:',minLonDiff,':latD:',minLatDiff)
+# Did we find one?
 if i > 0:
     url = url + '/' + station['properties']['Id'] + '/TidalEvents'
     print ('URL:'+url)
@@ -46,10 +49,18 @@ if i > 0:
 #    print(len(jsonData))
 #    pprint.pprint(jsonData)
 #    print(jsonData[0].keys())
+    leadTide = ''
     for x in jsonData:
         dateT = datetime.datetime.fromisoformat(x['DateTime']+'+00:00')
-        print (x['EventType'],'\t', dateT,' ',x['Height'],' ',dateT.tzinfo)
-
+        if x['EventType'] == 'LowWater':
+            evT = 'LT'
+        else:
+            evT = 'HT'
+        if leadTide == '':
+            leadTide = x['EventType']
+        if leadTide != x['EventType']:
+            print (evT,' ', dateT.strftime('%X'),' %4.2f' % x['Height'],' ', sep='',end='\n')
+        else:
+            print (dateT.strftime('%y'), '-',dateT.strftime('%m'),'-',dateT.strftime('%d'), ' ', evT,' ',  dateT.strftime('%X'),' %4.2f' % x['Height'],' ', sep='', end='')
 
 #pprint.pprint(jsonData)
-
