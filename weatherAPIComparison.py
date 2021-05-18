@@ -26,14 +26,14 @@ def printWeather (pKey,x, level):
         print('')
 
 
-citySearchURL = "https://api.openweathermap.org/geo/1.0/direct?limit=1&appid=6da4b00ffc971ffaa637108dfa22c622&"
-PCSearchURL = 'http://api.openweathermap.org/geo/1.0/zip?appid=6da4b00ffc971ffaa637108dfa22c622&'
-reverseLocURL = 'http://api.openweathermap.org/geo/1.0/reverse?limit=10&appid=6da4b00ffc971ffaa637108dfa22c622&'
-weatherFetchURL = "http://api.openweathermap.org/data/2.5/onecall?exclude=minutely,hourly&units=metric&appid=6da4b00ffc971ffaa637108dfa22c622&"
+citySearchURL = "https://api.openweathermap.org/geo/1.0/direct?limit=1&appid=Apikey&"
+PCSearchURL = 'http://api.openweathermap.org/geo/1.0/zip?appid=Apikey&'
+reverseLocURL = 'http://api.openweathermap.org/geo/1.0/reverse?limit=10&appid=Apikey&'
+weatherFetchURL = "http://api.openweathermap.org/data/2.5/onecall?exclude=minutely,hourly&units=metric&appid=Apikey&"
 weatherIconURL = "http://openweathermap.org/img/wn/***@2x.png"
 
-owBaseUrl = 'http://api.openweathermap.org/data/2.5/onecall?exclude=minutely,hourly&units=metric&appid=6da4b00ffc971ffaa637108dfa22c622&'
-#owBaseUrl = 'http://api.openweathermap.org/data/2.5/weather?appid=6da4b00ffc971ffaa637108dfa22c622&&units=metric&'
+owBaseUrl = 'http://api.openweathermap.org/data/2.5/onecall?exclude=minutely,hourly&units=metric&appid=Apikey&'
+#owBaseUrl = 'http://api.openweathermap.org/data/2.5/weather?appid=Apikey&units=metric&'
 cityPlaceHolder = 'xxxxxx'
 owCity = 'q='+cityPlaceHolder
 zipPlaceHolder = 'zzzzzz'
