@@ -15,7 +15,6 @@
 #   - breakfast time inclusion?!
 #   - minimum slot time? Sometimes produces slots < 1hr because it's not very smart
 
-
 import pprint, requests, json
 from datetime import timezone, datetime
 
@@ -27,7 +26,7 @@ class OpenWeather:
             openKey = json.load(f)
         self.url = 'http://api.openweathermap.org/data/2.5/forecast?units=metric&appid='+openKey['apikey']+'&'
         
-    def getLocationForecast(self,lon,lat):
+    def getLocationForecast(self,lon: float,lat: float) -> dict:
         forecastUrl = self.url + 'lat='+str(lat)+'&lon='+str(lon)
         r = requests.get(forecastUrl, headers=self.headers)
 # Could do with some error checking!!
@@ -51,7 +50,7 @@ class Admiralty:
 #         print ('Type', r.headers['content-type'])
         self.locationList = r.json()
 
-    def findClosestStation (self, lon, lat):
+    def findClosestStation (self, lon: float, lat: float) -> dict:
     # Look for the station closest to the provided lon/lat
     # using a simple metric of the smallest absolute angular deltas
         station = {}
@@ -73,7 +72,7 @@ class Admiralty:
 #         print('lonD:',minLonDiff,':latD:',minLatDiff)
         return station
     
-    def getTideInfo (self, station):
+    def getTideInfo (self, station: dict) -> dict:
         url = self.tideUrl + '/' + station['properties']['Id'] + '/TidalEvents'
 #        print ('URL:'+url)
         r = requests.get(url, headers=self.headers)
@@ -82,20 +81,19 @@ class Admiralty:
 #    print ('Type', r.headers['content-type'])
         return r.json()
     
-def compass(degrees):
+def compass(degrees: int) -> str:
     points = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW']
-    slotSize = 11.25*2
     slots = [11.25, 33.75, 56.25, 78.75, 101.25, 123.75, 146.25, 168.75, 191.25, 213.75, 236.25, 258.75, 281.25, 303.75, 326.25, 348.75]
     for i in range(0,len(slots)-1):
         if degrees < slots[i]:
             return points[i]
     return points[0]
     
-#***************************************************
+###################################################
 #
-#     Main Code starts here!
+#   Main code starts here
 #
-#***************************************************
+###################################################
 
 force4 = 11 # useful windspeed in knots
 m_2_k = 1.944 # conversion factor for m/s to knots
@@ -116,6 +114,9 @@ weatherInfo = OpenWeather()
 
 for l in locations:
     # Saving the data in the Locations structure...
+    # Could in principle combine these into one
+    # Was thinking about rewriting config file to include station, as
+    # it won't change very often :-), otherwise not used past this point
     l['station'] = tideInfo.findClosestStation(l['lon'],l['lat'])
     l['tideInfo'] = tideInfo.getTideInfo(l['station'])
 
@@ -170,15 +171,19 @@ for l in locations:
     if locationHasSlots:
         print(l['locationName']+' sailing opportunities')
         for t in l['tideSlots']:
-            print('\t'+t['start'].strftime('%d') +' '+t['start'].strftime('%b')+' '+t['start'].strftime('%y')+' '+ t['start'].strftime('%H')+ ':'+ t['start'].strftime('%M')+' --> '+ t['end'].strftime('%H')+ ':'+ t['end'].strftime('%M'))
-            for f in t['forecasts']:
-                dt=datetime.fromtimestamp(f['dt'], tz=timezone.utc) 
-                print('\t\t'+dt.strftime('%H')+ ':'+ dt.strftime('%M')+ \
-                      ' '+f['weather'][0]['main']+ \
-                      ' temp '+'{:4.2f}'.format(f['main']['temp'])+ \
-                      ' wind '+ compass(f['wind']['deg'])+ \
-                          ' spd '+'{:4.2f}'.format(f['wind']['speed']*m_2_k)+ \
-                          ' gust '+'{:4.2f}'.format(f['wind']['gust']*m_2_k) \
-                      )
+            if len(t['forecasts']) > 0:
+                print('\t'+t['start'].strftime('%d') +' '+t['start'].strftime('%b')+' '+t['start'].strftime('%y')+' '+ t['start'].strftime('%H')+ ':'+ t['start'].strftime('%M')+' --> '+ t['end'].strftime('%H')+ ':'+ t['end'].strftime('%M'))
+                for f in t['forecasts']:
+                    dt=datetime.fromtimestamp(f['dt'], tz=timezone.utc) 
+                    print('\t\t'+dt.strftime('%H')+ ':'+ dt.strftime('%M')+ \
+                          ' '+f['weather'][0]['main']+ \
+                          ' precip '+'{:3.0f}'.format(f['pop']*100)+'%' + \
+                          ' temp '+'{:4.2f}'.format(f['main']['temp'])+ \
+                          ' wind '+ compass(f['wind']['deg'])+ \
+                              ' spd '+'{:4.2f}'.format(f['wind']['speed']*m_2_k)+ \
+                              ' gust '+'{:4.2f}'.format(f['wind']['gust']*m_2_k) \
+                          )
 #                      ' rain '+str(f['rain']['3h'])+ \ # Turns out 'rain' is optional!
         print(' ')
+            
+
