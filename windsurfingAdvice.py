@@ -4,19 +4,24 @@
 #     - checks the tide situation over the next 7 days, looking (initially) for the slot HighWater± 2 hours
 #     - looks at the weather for the same period, checking the wind speed and direction (cross-on)
 #     - for any day which has interesting conditions, it suggests that period
-# It uses a JSON configuration file that holds a list of locations, their lon/lat and their compass bearing
-# of the form
-# [{"locationName":"Hayling","lon":"-0.9812552319641458","lat":'50.78504188911509","bearing":"185"},
-#  {"locationName":"WestwardHo","lon":"-4.232240726879152","lat":"51.05830527471508","bearing":"280"}]
+# It uses a JSON configuration file that holds a list of locations, their lon/lat, their compass bearing
+# and the useful time after/before HT of the form
+# [{"locationName":"Hayling","lon":-1.0066120485105117,"lat":50.78608125774226,"bearing":185, "HTDelta":2},
+#  {"locationName":"WestwardHo","lon":-4.232240726879152,"lat":51.05830527471508,"bearing":280, "HTDelta":3}]
+# Possible enhancements:
+#   - find some wave forecasts? (hard)
+#   - different before/after HT deltas (easy)
+#   - sunrise/sunset from forecast combined with slot start/end (not with OpenWeather free 6-day, requires another request
+#   - breakfast time inclusion?!
+#   - minimum slot time? Sometimes produces slots < 1hr because it's not very smart
 
-import pprint, requests, datetime, json
 
-force4 = 11 # useful windspeed in knots
-m_2_k = 1.944 # conversion factor for m/s to knots
+import pprint, requests, json
+from datetime import timezone, datetime
 
 class OpenWeather:
     def __init__(self):
-        print ('OpenWeather init')
+#        print ('OpenWeather init')
         self.headers = {'Accept':'application/json'}
         with open('openweather.key') as f:
             openKey = json.load(f)
@@ -25,8 +30,9 @@ class OpenWeather:
     def getLocationForecast(self,lon,lat):
         forecastUrl = self.url + 'lat='+str(lat)+'&lon='+str(lon)
         r = requests.get(forecastUrl, headers=self.headers)
-        print ('Result',r.status_code)
-        print ('Type', r.headers['content-type'])
+# Could do with some error checking!!
+#        print ('Result',r.status_code)
+#        print ('Type', r.headers['content-type'])
         return r.json()
         
         
@@ -40,6 +46,7 @@ class Admiralty:
             tideKey = json.load(f)
         self.headers['Ocp-Apim-Subscription-Key'] = tideKey['apikey']
         r = requests.get(self.tideUrl, headers=self.headers)
+# Could do with some error checking!!
 #         print ('Result',r.status_code)
 #         print ('Type', r.headers['content-type'])
         self.locationList = r.json()
@@ -70,71 +77,108 @@ class Admiralty:
         url = self.tideUrl + '/' + station['properties']['Id'] + '/TidalEvents'
 #        print ('URL:'+url)
         r = requests.get(url, headers=self.headers)
+# Could do with some error checking!!
 #    print ('Result',r.status_code)
 #    print ('Type', r.headers['content-type'])
         return r.json()
     
+def compass(degrees):
+    points = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW']
+    slotSize = 11.25*2
+    slots = [11.25, 33.75, 56.25, 78.75, 101.25, 123.75, 146.25, 168.75, 191.25, 213.75, 236.25, 258.75, 281.25, 303.75, 326.25, 348.75]
+    for i in range(0,len(slots)-1):
+        if degrees < slots[i]:
+            return points[i]
+    return points[0]
+    
+#***************************************************
+#
+#     Main Code starts here!
+#
+#***************************************************
+
+force4 = 11 # useful windspeed in knots
+m_2_k = 1.944 # conversion factor for m/s to knots
+bearingLimit = 90 # no. degrees +- beach bearing for useful onshore wind
+
+
+# Load the list of locations and their details
 
 with open('locations.json') as f:
     locations = json.load(f)
-#pprint.pprint (locations) 
 
+# Initialize API classes
 
 tideInfo = Admiralty()
 weatherInfo = OpenWeather()
 
-stations = []
+# For each defined location...
+
 for l in locations:
+    # Saving the data in the Locations structure...
     l['station'] = tideInfo.findClosestStation(l['lon'],l['lat'])
     l['tideInfo'] = tideInfo.getTideInfo(l['station'])
-#     pprint.pprint (l['station'])
+
 # OK, got the tidal data for our locations for the next 6+1 days
 # Let's find some HT±n hours slots
     from datetime import timedelta
     startDelta = timedelta (hours = l['HTDelta'])
-#    print (startDelta)
     endDelta = timedelta (hours = -l['HTDelta'])
-#    print (endDelta)
     HWTimes = []
     for t in l['tideInfo']:
         if t['EventType'] == 'HighWater':
-            dateT = datetime.datetime.fromisoformat(t['DateTime']+'+00:00')
-            slotEnd = dateT + endDelta
-            slotStart = dateT + startDelta
+            dateT = datetime.fromisoformat(t['DateTime']+'+00:00') # Makes it TZ-aware
+            slotEnd = dateT + endDelta         # Stop n hours before HT
+            slotStart = dateT + startDelta     # Start (again!) n hours after HT
             HWTimes.append([slotEnd,slotStart])
+
+    # Now check the list of HT events for any that are at sensible times
+    # Might check sunrise/sunset sometime in the future, from the forecast
+    # List is of the form e-HT0-s   e-HT1-s   e-HT2-s
+    #   We would sail in these   ^^^       ^^^
     start = HWTimes[0][1]
     l['tideSlots'] = []
     for i in range(1,len(HWTimes)-1,1):
         end = HWTimes[i][0]
         if (start.hour < end.hour) and (start.hour > 7 or end.hour < 18):
-            l['tideSlots'].append({'start':start,'end':end,'windCount':0})
- #           print (start,'>>>',end)
+            l['tideSlots'].append({'start':start,'end':end,'windCount':0,'forecasts':[]})
         start = HWTimes[i][1]
-    print (len(l['tideSlots']))
+
     # Right! We now have some possible tide-driven sailing times
     # Let's refine them with some weather and sunrise/sunset times
     forecast = weatherInfo.getLocationForecast(l['lon'],l['lat'])
-#    pprint.pprint (forecast)
     l['goodWindList'] = []
-    print(l['locationName'],'has',len(forecast['list']),'entries')
     for d in forecast['list']:
-        dt = datetime.datetime.fromtimestamp(d['dt'], tz=datetime.timezone(datetime.timedelta(hours=0),name='UTC'))
-        print ('ForecastTZ:',dt.strftime('%Z'))
-#        print (l['locationName'],dt.strftime('%a'),dt.strftime('%X'),d['main']['temp'],d['wind']['deg'],d['wind']['speed']*m_2_k,d['wind']['gust']*m_2_k)
+        dt = datetime.fromtimestamp(d['dt'], tz=timezone.utc)
         if d['wind']['speed']*m_2_k >= force4: # fast enough?
-            upper = (l['bearing']+90)%360 
-            lower = (l['bearing']+360-90)%360
+            upper = (l['bearing']+bearingLimit)%360 
+            lower = (l['bearing']+360-bearingLimit)%360
             if (upper > lower and d['wind']['deg'] >= lower and d['wind']['deg'] <= upper) \
                or (upper < lower and (d['wind']['deg'] >= lower or d['wind']['deg'] <= upper)):
-                print(l['locationName'],dt.strftime('%a'),dt.strftime('%X'),'{:4.2f}'.format(d['main']['temp']),'{:4.2f}'.format(d['wind']['speed']*m_2_k), upper, lower, d['wind']['deg'])
                 l['goodWindList'].append(d)
-    print(l['locationName'],'has',len(l['goodWindList']),'good entries')
+
     # Match up the good wind slots with the good tide slots :-)
-    print ('StarttZ:',l['tideSlots'][0]['start'].strftime('%Z'))
-    print ('EndtZ:',l['tideSlots'][0]['end'].strftime('%Z'))
+    locationHasSlots = False
     for s in l['goodWindList']:
         for t in l['tideSlots']:
-            ws = datetime.datetime.fromtimestamp(s['dt'])
+            ws = datetime.fromtimestamp(s['dt'],tz=timezone.utc)
             if ws >= t['start'] and ws <= t['end']:
-                t['windCount'] = t['windCount']+1
-    pprint(l['tideSlots'])
+                locationHasSlots = True
+                t['forecasts'].append(s)
+
+    # Print stuff out
+    if locationHasSlots:
+        print(l['locationName']+' sailing opportunities')
+        for t in l['tideSlots']:
+            print('\t'+t['start'].strftime('%d') +' '+t['start'].strftime('%b')+' '+t['start'].strftime('%y')+' '+ t['start'].strftime('%H')+ ':'+ t['start'].strftime('%M')+' --> '+ t['end'].strftime('%H')+ ':'+ t['end'].strftime('%M'))
+            for f in t['forecasts']:
+                dt=datetime.fromtimestamp(f['dt'], tz=timezone.utc) 
+                print('\t\t'+dt.strftime('%H')+ ':'+ dt.strftime('%M')+ \
+                      ' '+f['weather'][0]['main']+ \
+                      ' temp '+'{:4.2f}'.format(f['main']['temp'])+ \
+                      ' wind '+ compass(f['wind']['deg'])+ \
+                          ' spd '+'{:4.2f}'.format(f['wind']['speed']*m_2_k)+ \
+                          ' gust '+'{:4.2f}'.format(f['wind']['gust']*m_2_k) \
+                      )
+#                      ' rain '+str(f['rain']['3h'])+ \ # Turns out 'rain' is optional!
+        print(' ')
