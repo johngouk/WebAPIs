@@ -7,13 +7,15 @@
 # It uses a JSON configuration file that holds a list of locations, their lon/lat, their compass bearing
 # and the useful time after/before HT of the form
 # [{"locationName":"Hayling","lon":-1.0066120485105117,"lat":50.78608125774226,"bearing":185, "HTDelta":2},
-#  {"locationName":"WestwardHo","lon":-4.232240726879152,"lat":51.05830527471508,"bearing":280, "HTDelta":3}]
+#  {"locationName":"WestwardHo","lon":-4.232240726879152,"lat":51.05830527471508,"bearing":280, "HTDelta":3},
+#  {"locationName":"Christchurch Harbour", "lat":50.724883,"lon":-1.741400, "bearing":100,"LTDelta":3}]
 # Possible enhancements:
 #   - find some wave forecasts? (hard)
 #   - different before/after HT deltas (easy)
 #   - sunrise/sunset from forecast combined with slot start/end (not with OpenWeather free 6-day, requires another request
 #   - breakfast time inclusion?!
 #   - minimum slot time? Sometimes produces slots < 1hr because it's not very smart
+
 
 import pprint, requests, json
 from datetime import timezone, datetime
@@ -25,16 +27,34 @@ class OpenWeather:
         with open('openweather.key') as f:
             openKey = json.load(f)
         self.url = 'http://api.openweathermap.org/data/2.5/forecast?units=metric&appid='+openKey['apikey']+'&'
+        self.dayUrl = 'https://api.openweathermap.org/data/2.5/onecall?units=metric&exclude=current,minutely,hourly,alerts&appid='+openKey['apikey']+'&'
         
+    def getDayInfo(self,lon: float,lat: float) -> dict:
+        dayInfoUrl = self.dayUrl + 'lat='+str(lat)+'&lon='+str(lon)
+        r = requests.get(dayInfoUrl, headers=self.headers)
+# Could do with some error checking!!
+#        print ('Result',r.status_code)
+#        print ('Type', r.headers['content-type'])
+        return r.json()
+
+
     def getLocationForecast(self,lon: float,lat: float) -> dict:
         forecastUrl = self.url + 'lat='+str(lat)+'&lon='+str(lon)
         r = requests.get(forecastUrl, headers=self.headers)
 # Could do with some error checking!!
 #        print ('Result',r.status_code)
 #        print ('Type', r.headers['content-type'])
-        return r.json()
-        
-        
+        wInfo = r.json()
+        dInfo = self.getDayInfo(lon,lat)
+        print(len(wInfo['list']),' items in weather')
+        print(len(dInfo['daily']),' items in daily')
+        dayInfo = []
+        for d in dInfo['daily']:
+            times = {'sunrise':d['sunrise'],'sunset':d['sunset']}
+            dayInfo.append(times)
+        wInfo['daylight'] = dayInfo
+        return wInfo
+                
 
 class Admiralty:
     def __init__(self):
@@ -119,15 +139,30 @@ for l in locations:
     # it won't change very often :-), otherwise not used past this point
     l['station'] = tideInfo.findClosestStation(l['lon'],l['lat'])
     l['tideInfo'] = tideInfo.getTideInfo(l['station'])
+    
 
 # OK, got the tidal data for our locations for the next 6+1 days
 # Let's find some HT±n hours slots
     from datetime import timedelta
-    startDelta = timedelta (hours = l['HTDelta'])
-    endDelta = timedelta (hours = -l['HTDelta'])
+    locKeys = l.keys()
+    if 'HTDelta' in l.keys():
+        # we want HighWater events
+        event = 'HighWater'
+        key = 'HTDelta'
+    elif 'LTDelta' in l.keys():
+        # Obviously 'LowWater'
+        event = 'LowWater'
+        key = 'LTDelta'
+    else:
+        # explode
+        print('Silly arse!! Add HTDelta or LTDelta to your location definition')
+        break
+    
+    startDelta = timedelta (hours = l[key])
+    endDelta = timedelta (hours = -l[key])
     HWTimes = []
     for t in l['tideInfo']:
-        if t['EventType'] == 'HighWater':
+        if t['EventType'] == event:
             dateT = datetime.fromisoformat(t['DateTime']+'+00:00') # Makes it TZ-aware
             slotEnd = dateT + endDelta         # Stop n hours before HT
             slotStart = dateT + startDelta     # Start (again!) n hours after HT
@@ -157,6 +192,7 @@ for l in locations:
             if (upper > lower and d['wind']['deg'] >= lower and d['wind']['deg'] <= upper) \
                or (upper < lower and (d['wind']['deg'] >= lower or d['wind']['deg'] <= upper)):
                 l['goodWindList'].append(d)
+
 
     # Match up the good wind slots with the good tide slots :-)
     locationHasSlots = False
