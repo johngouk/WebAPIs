@@ -7,8 +7,7 @@
 # It uses a JSON configuration file that holds a list of locations, their lon/lat, their compass bearing
 # and the useful time after/before HT of the form
 # [{"locationName":"Hayling","lon":-1.0066120485105117,"lat":50.78608125774226,"bearing":185, "HTDelta":2},
-#  {"locationName":"WestwardHo","lon":-4.232240726879152,"lat":51.05830527471508,"bearing":280, "HTDelta":3},
-#  {"locationName":"Christchurch Harbour", "lat":50.724883,"lon":-1.741400, "bearing":100,"LTDelta":3}]
+#  {"locationName":"WestwardHo","lon":-4.232240726879152,"lat":51.05830527471508,"bearing":280, "HTDelta":3}]
 # Possible enhancements:
 #   - find some wave forecasts? (hard)
 #   - different before/after HT deltas (easy)
@@ -209,17 +208,15 @@ for l in locations:
         for t in l['tideSlots']:
             if len(t['forecasts']) > 0:
                 print('\t'+t['start'].strftime('%d') +' '+t['start'].strftime('%b')+' '+t['start'].strftime('%y')+' '+ t['start'].strftime('%H')+ ':'+ t['start'].strftime('%M')+' --> '+ t['end'].strftime('%H')+ ':'+ t['end'].strftime('%M'))
-                for f in t['forecasts']:
-                    dt=datetime.fromtimestamp(f['dt'], tz=timezone.utc) 
-                    print('\t\t'+dt.strftime('%H')+ ':'+ dt.strftime('%M')+ \
-                          ' '+f['weather'][0]['main']+ \
-                          ' precip '+'{:3.0f}'.format(f['pop']*100)+'%' + \
-                          ' temp '+'{:4.2f}'.format(f['main']['temp'])+ \
-                          ' wind '+ compass(f['wind']['deg'])+ \
-                              ' spd '+'{:4.2f}'.format(f['wind']['speed']*m_2_k)+ \
-                              ' gust '+'{:4.2f}'.format(f['wind']['gust']*m_2_k) \
+                for fx in t['forecasts']:
+                    dt=datetime.fromtimestamp(fx['dt'], tz=timezone.utc) 
+                    print('\t\t' + dt.strftime('%H') + ':' + dt.strftime('%M') + \
+                          ' ' + fx['weather'][0]['main'] + \
+                          ' precip ' + '{:3.0f}'.format(fx['pop']*100) + '%' + \
+                          ' temp ' + '{:4.2f}'.format(fx['main']['temp']) + \
+                          ' wind ' + compass(fx['wind']['deg']) + \
+                              ' spd ' + '{:4.2f}'.format(fx['wind']['speed']*m_2_k) + \
+                              ' gust ' + '{:4.2f}'.format(fx['wind']['gust']*m_2_k) \
                           )
 #                      ' rain '+str(f['rain']['3h'])+ \ # Turns out 'rain' is optional!
         print(' ')
-            
-
