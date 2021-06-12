@@ -45,8 +45,8 @@ class OpenWeather:
 #        print ('Type', r.headers['content-type'])
         wInfo = r.json()
         dInfo = self.getDayInfo(lon,lat)
-        print(len(wInfo['list']),' items in weather')
-        print(len(dInfo['daily']),' items in daily')
+#        print(len(wInfo['list']),' items in weather')
+#        print(len(dInfo['daily']),' items in daily')
         dayInfo = []
         for d in dInfo['daily']:
             times = {'sunrise':d['sunrise'],'sunset':d['sunset']}
@@ -203,20 +203,24 @@ for l in locations:
                 t['forecasts'].append(s)
 
     # Print stuff out
-    if locationHasSlots:
+    if not locationHasSlots:
+        print(l['locationName']+' has no sailing opportunities')
+    else:
         print(l['locationName']+' sailing opportunities')
         for t in l['tideSlots']:
             if len(t['forecasts']) > 0:
                 print('\t'+t['start'].strftime('%d') +' '+t['start'].strftime('%b')+' '+t['start'].strftime('%y')+' '+ t['start'].strftime('%H')+ ':'+ t['start'].strftime('%M')+' --> '+ t['end'].strftime('%H')+ ':'+ t['end'].strftime('%M'))
                 for fx in t['forecasts']:
                     dt=datetime.fromtimestamp(fx['dt'], tz=timezone.utc) 
-                    print('\t\t' + dt.strftime('%H') + ':' + dt.strftime('%M') + \
-                          ' ' + fx['weather'][0]['main'] + \
-                          ' precip ' + '{:3.0f}'.format(fx['pop']*100) + '%' + \
-                          ' temp ' + '{:4.2f}'.format(fx['main']['temp']) + \
-                          ' wind ' + compass(fx['wind']['deg']) + \
-                              ' spd ' + '{:4.2f}'.format(fx['wind']['speed']*m_2_k) + \
-                              ' gust ' + '{:4.2f}'.format(fx['wind']['gust']*m_2_k) \
+                    print('\t\t'+dt.strftime('%H')+ ':'+ dt.strftime('%M')+ \
+                          ' '+fx['weather'][0]['main']+ \
+                          ' precip '+'{:3.0f}'.format(fx['pop']*100)+'%' + \
+                          ' temp '+'{:4.2f}'.format(fx['main']['temp'])+ \
+                          ' wind '+ compass(fx['wind']['deg'])+ \
+                              ' spd '+'{:4.2f}'.format(fx['wind']['speed']*m_2_k)+ \
+                              ' gust '+'{:4.2f}'.format(fx['wind']['gust']*m_2_k) \
                           )
 #                      ' rain '+str(f['rain']['3h'])+ \ # Turns out 'rain' is optional!
         print(' ')
+            
+
