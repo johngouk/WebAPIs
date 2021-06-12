@@ -23,7 +23,7 @@ class OpenWeather:
     def __init__(self):
 #        print ('OpenWeather init')
         self.headers = {'Accept':'application/json'}
-        with open('openweather.key') as f:
+        with open('../openweather.key') as f:
             openKey = json.load(f)
         self.url = 'http://api.openweathermap.org/data/2.5/forecast?units=metric&appid='+openKey['apikey']+'&'
         self.dayUrl = 'https://api.openweathermap.org/data/2.5/onecall?units=metric&exclude=current,minutely,hourly,alerts&appid='+openKey['apikey']+'&'
@@ -60,7 +60,7 @@ class Admiralty:
 #        print('Admiralty init')
         self.tideUrl ='https://admiraltyapi.azure-api.net/uktidalapi/api/V1/Stations'
         self.headers = {'Accept':'application/json', 'Ocp-Apim-Subscription-Key':'apikey'}
-        with open('admiralty.key') as f:
+        with open('../admiralty.key') as f:
             tideKey = json.load(f)
         self.headers['Ocp-Apim-Subscription-Key'] = tideKey['apikey']
         r = requests.get(self.tideUrl, headers=self.headers)
