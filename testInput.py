@@ -1,3 +1,4 @@
+# Test Python interactive input
 from sys import exit
 x = input("Give me a number => ")
 if x == "":
