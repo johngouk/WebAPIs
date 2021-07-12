@@ -15,7 +15,6 @@
 #   - breakfast time inclusion?!
 #   - minimum slot time? Sometimes produces slots < 1hr because it's not very smart
 
-
 import pprint, requests, json
 from datetime import timezone, datetime
 
