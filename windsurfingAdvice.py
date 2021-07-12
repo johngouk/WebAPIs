@@ -1,7 +1,7 @@
 # A prototype for an app that will provide a notification for suitable conditions
 # forecast for a specified windsurfing location
 # Given a location, as a name or preferably a lon/lat, and the location's compass bearing, it
-#     - checks the tide situation over the next 7 days, looking (initially) for the slot HighWater± 2 hours
+#     - checks the tide situation over the next 7 days, looking (initially) for the slot HighWater+- 2 hours
 #     - looks at the weather for the same period, checking the wind speed and direction (cross-on)
 #     - for any day which has interesting conditions, it suggests that period
 # It uses a JSON configuration file that holds a list of locations, their lon/lat, their compass bearing
